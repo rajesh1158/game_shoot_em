@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<style>
+			#gameCanvas {
+				border: 1px solid black;
+				margin-left: 7%;
+			}
+
+			#gameOverCanvas{
+				left:7%;
+				position: absolute;
+			}
+		</style>
+		<script src="js/jquery.js"></script>
+
+		<script type="text/javascript">
+			var destroyed, lives, keysArr, enemyShipsArr, heroBomb, showHeroExplosion, showEnemyExplosion, showEnemyExplosionX, showEnemyExplosionY;
+			var isGamePlaying = false;
+			var destroyedSound = new Audio('audio/destroyedSound.wav');
+
+			var heroImage = new Image();
+			heroImage.src = 'images/heroShip.png';
+			var explosionImage = new Image();
+			explosionImage.src = 'images/explosion.png';
+			var heroBombImage = new Image();
+			heroBombImage.src = 'images/heroBomb.png';
+			var enemyImage = new Image();
+			enemyImage.src = 'images/enemyShip.png';
+			var bgImage = new Image();
+			bgImage.src = 'images/space.png';
+			var logoImg = new Image();
+			logoImg.src = 'images/logo.png';
+			var playImg = new Image();
+			playImg.src = 'images/playButton.png';
+
+			$(document).ready(function() {
+				$(window).keydown(function(evt) {
+					if(evt.keyCode == 39 || evt.keyCode == 37 || evt.keyCode == 17) {
+						keysArr[evt.keyCode] = true;
+					} else if(!isGamePlaying && evt.keyCode == 13) {
+						startGame();
+						$("#gameCanvas").css('opacity','');
+					}
+				});
+
+				$(window).keyup(function(evt) {
+					if(evt.keyCode == 39 || evt.keyCode == 37 || evt.keyCode == 17) {
+						keysArr[evt.keyCode] = false;
+					}
+				});
+			});
+
+			function initDefaults() {
+				destroyed = 0;
+				lives = 5;
+				keysArr = new Array();
+				enemyShipsArr = new Array();
+			}
+
+			function EnemyShip(x, y, xPos, yPos, w, h, fallSpeed, image) {
+				this.x = x;
+				this.y = y;
+				this.w = w;
+				this.h = h;
+				this.xPos = xPos;
+				this.yPos = yPos;
+				this.fallSpeed = fallSpeed;
+				this.image = image;
+			}
+
+			function HeroShip(xPos,image) {
+				this.xPos = xPos;
+				this.w = 100;
+				this.h = 80;
+				this.yPos = 570;
+				this.moveXDist = 12;
+				this.image = image;
+			}
+
+			function HeroBomb(x, y, xPos, yPos, image) {
+				this.x = x;
+				this.y = y;
+				this.xPos = xPos;
+				this.w = 20;
+				this.h = 30;
+				this.yPos = yPos;
+				this.moveYDist = 6;
+				this.image = image;
+			}
+
+			window.onload = function() {
+				init();
+			};
+
+			function init(){
+				canvas = document.getElementById("gameCanvas");
+				gameOverCanvas = document.getElementById("gameOverCanvas");
+				context = canvas.getContext("2d");
+				gameOverContext = gameOverCanvas.getContext("2d");
+
+				//background
+				context.drawImage(bgImage,0,0, bgImage.width, bgImage.height, 0,0,canvas.width, canvas.height);
+
+				//heroShip
+				heroShip = new HeroShip(canvas.width/2 - 30, heroImage);
+				context.drawImage(heroShip.image, heroShip.xPos, heroShip.yPos, heroShip.w, heroShip.h);
+
+				//logo
+				context.drawImage(logoImg, canvas.width/4, canvas.height/3-50, 400, 125);
+
+				//play button
+				context.drawImage(playImg, canvas.width/4 + 80, canvas.height/2-50, 225, 60);
+			}
+
+			function startGame() {
+				initDefaults();
+				isGamePlaying = true;
+				gameTimer = setInterval(drawScene, 20);
+				enemyTimer = setInterval(spawnEnemy, 1500);
+			}
+
+			function getRandFallSpeed() {
+				return (Math.ceil( (Math.random() * 4) + 2));
+			}
+
+			function getRandEnemyXPos() {
+				return Math.floor(Math.random() * (4*canvas.width/5));
+			}
+
+			function spawnEnemy() {
+				var newEnemy = new EnemyShip(0, 0, getRandEnemyXPos(), 0, enemyImage.width, enemyImage.height, getRandFallSpeed(), enemyImage);
+				var index = (enemyShipsArr.length == 0) ? 0 : enemyShipsArr.length - 1;
+				enemyShipsArr.push(newEnemy);
+			}
+
+			function processKeys() {
+				if(keysArr[39]) {//right arrow
+					var currentX = heroShip.xPos + heroShip.moveXDist;
+					if(currentX >= canvas.width-heroShip.w) {
+						heroShip.xPos = canvas.width-heroShip.w;
+					} else {
+						heroShip.xPos = currentX;
+					}
+				} else if(keysArr[37]) {//left arrow
+					var currentX = heroShip.xPos - heroShip.moveXDist;
+					if(currentX <= 0) {
+						heroShip.xPos = 0;
+					} else {
+						heroShip.xPos = currentX;
+					}
+				} else if(keysArr[17]) {//control
+					if(heroBomb == undefined) {
+						heroBomb = new HeroBomb(0, 0, heroShip.xPos + heroShip.w/2 - 10, heroShip.yPos - 15, heroBombImage);
+					}
+				}
+			}
+
+			function clearContexts() {
+				context.clearRect(0,0,canvas.width,canvas.height);
+				gameOverContext.clearRect(0,0,gameOverCanvas.width,gameOverCanvas.height);
+			}
+
+			function drawScene() {
+				clearContexts();
+				processKeys();
+
+				//background
+				context.drawImage(bgImage,0,0, bgImage.width, bgImage.height, 0,0,canvas.width, canvas.height);
+
+				//heroShip
+				context.drawImage(heroShip.image, heroShip.xPos, heroShip.yPos, heroShip.w, heroShip.h);
+
+				//heroBomb
+				if(heroBomb != undefined) {
+					if(heroBomb.yPos < 0) {
+						heroBomb = undefined;
+					} else {
+						heroBomb.yPos -= heroBomb.moveYDist;
+						context.drawImage(heroBomb.image, heroBomb.x, heroBomb.y, heroBomb.image.width, heroBomb.image.height, heroBomb.xPos, heroBomb.yPos, heroBomb.w, heroBomb.h);
+					}
+				}
+
+				//enemy ships
+				for(var i=0; i<enemyShipsArr.length; i++) {
+					if(enemyShipsArr[i] != undefined) {
+						var enemyShip = enemyShipsArr[i];
+						enemyShip.yPos += enemyShip.fallSpeed;
+						context.drawImage(enemyShip.image, enemyShip.x, enemyShip.y, enemyShip.image.width, enemyShip.image.height, enemyShip.xPos, enemyShip.yPos, enemyShip.w, enemyShip.h);
+
+						if(enemyShip.yPos >= heroShip.yPos && enemyShip.yPos < canvas.height && enemyShip.xPos >= heroShip.xPos && enemyShip.xPos <= heroShip.xPos + heroShip.w) {//hero hit
+							lives--;
+							if(showHeroExplosion == undefined) {
+								context.drawImage(explosionImage, heroShip.xPos, heroShip.yPos);
+								showHeroExplosion = 20;
+							}
+							delete enemyShipsArr[i];
+							destroyedSound.play();
+						}
+						if(heroBomb != undefined && heroBomb.yPos <= enemyShip.yPos && ( (heroBomb.xPos >= enemyShip.xPos && heroBomb.xPos <= enemyShip.xPos + enemyShip.w) || (heroBomb.xPos + heroBomb.w >= enemyShip.xPos && heroBomb.xPos + heroBomb.w <= enemyShip.xPos + enemyShip.w) )) {//enemy destroyed
+							destroyed++;
+							if(showEnemyExplosion == undefined) {
+								showEnemyExplosionX = enemyShip.xPos;
+								showEnemyExplosionY = enemyShip.yPos;
+								context.drawImage(explosionImage, showEnemyExplosionX, showEnemyExplosionY);
+								showEnemyExplosion = 20;
+							}
+							heroBomb = undefined;
+							delete enemyShipsArr[i];
+							destroyedSound.play();
+						}
+					}
+				}
+
+				if(showHeroExplosion != undefined && showHeroExplosion < 500) {
+					showHeroExplosion += 20;
+					context.drawImage(explosionImage, heroShip.xPos, heroShip.yPos);
+				} else {
+					showHeroExplosion = undefined;
+				}
+
+				if(showEnemyExplosion != undefined && showEnemyExplosion < 500) {
+					showEnemyExplosion += 20;
+					context.drawImage(explosionImage, showEnemyExplosionX, showEnemyExplosionY);
+				} else {
+					showEnemyExplosion = undefined;
+				}
+				
+				context.font = "bold 16px sans-serif";
+				context.fillStyle = "rgb(255,255,255)";
+				context.fillText("Lives: " + lives, canvas.width - 325, 30);
+				context.fillText("Enemies killed: " + destroyed, canvas.width - 225, 30);
+
+				if(lives == 0) {
+					isGamePlaying = false;
+					clearInterval(gameTimer);
+					clearInterval(enemyTimer);
+					$("#gameCanvas").css('opacity','0.5');
+					gameOverContext.font = "bold 30px sans-serif";
+					gameOverContext.fillStyle = "black";
+					gameOverContext.fillText("Congratulations !!!", canvas.width/2-160,canvas.height/3);
+					gameOverContext.font = "bold 25px sans-serif";
+					gameOverContext.fillStyle = "rgb(0, 0, 0)";				
+					gameOverContext.fillText("You destroyed " + destroyed + " enemy ship(s) !!", canvas.width/2-160,canvas.height/3+50);
+					gameOverContext.font = "bold 20px sans-serif";
+					gameOverContext.fillText("Press ENTER to play again", canvas.width/2-160,canvas.height/3+100);
+				}
+			}
+		</script>
+	</head>
+	<body>
+		<canvas id="gameCanvas" width="800" height="650"></canvas>
+		<canvas id="gameOverCanvas" width="800" height="650"></canvas>
+	</body>
+</html>
